@@ -62,7 +62,7 @@
       border-color: #56657a;
       box-shadow: 0 13px 34px rgba(0,0,0,.36), 0 0 0 1px rgba(105,132,170,.08);
     }
-    .node.expandable { cursor: grab; }
+    .node.expandable { cursor: pointer; }
     .node.root {
       width: 190px;
       border-color: #6e8bb5;
@@ -92,21 +92,18 @@
     .node-copy { min-width: 0; flex: 1; }
     .node-title { font-size: 13px; line-height: 1.28; font-weight: 720; color: #eef3f8; }
     .node-sub { margin-top: 4px; font-size: 10.5px; line-height: 1.32; color: #8f9aaa; }
-    .toggle {
+    .branch-hint {
       flex: 0 0 auto;
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      border: 1px solid #46546a;
-      background: #0e141e;
-      color: #dbe5f1;
-      display: grid;
-      place-items: center;
-      font-size: 18px;
-      font-weight: 650;
+      padding: 4px 7px;
+      border: 1px solid #334052;
+      border-radius: 999px;
+      background: #101722;
+      color: #9eacc0;
+      font-size: 9px;
       line-height: 1;
-      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .05em;
     }
-    .toggle:hover { border-color: #7186a4; background: #16202e; }
     .leaf-mark {
       flex: 0 0 auto;
       width: 28px; height: 28px;
@@ -184,7 +181,7 @@
     <svg id="edges"></svg>
     <div id="nodes"></div>
   </div>
-  <div class="hint">Дерево идёт слева направо. Карточка с <b>+</b>/<b>−</b> имеет дочернюю ветку. Карточку можно вручную перетащить. Пустое поле двигает всю карту.</div>
+  <div class="hint">Нажми на любую карточку с ветками — она раскроется или свернётся. Потяни карточку мышкой, чтобы переставить её. Карточка с пометкой «конечный узел» не раскрывается.</div>
   <div class="corner">
     <button id="zoomOut" title="Уменьшить">−</button>
     <button id="reset" title="Вернуть центр">◎</button>
@@ -402,7 +399,7 @@ function render() {
       ? '<span class="branch-count">' + node.children.length + ' ' + (node.children.length === 1 ? 'ветка' : 'ветки') + '</span>'
       : '<span class="leaf-label">конечный узел</span>';
     const control = hasChildren
-      ? '<button class="toggle" title="' + (node.expanded ? 'Свернуть ветку' : 'Раскрыть ветку') + '">' + (node.expanded ? '−' : '+') + '</button>'
+      ? '<span class="branch-hint">' + (node.expanded ? 'открыто' : 'есть ветки') + '</span>'
       : '<span class="leaf-mark" title="Нет дочерних веток">•</span>';
 
     el.innerHTML =
@@ -413,28 +410,23 @@ function render() {
       '</div>' +
       '<div class="node-foot"><span class="status-label">' + statusText(node) + '</span>' + branchInfo + '</div>';
 
-    if (hasChildren) {
-      el.querySelector(".toggle").addEventListener("click", (e) => {
-        e.stopPropagation();
-        node.expanded = !node.expanded;
-        render();
-      });
-    }
-
     el.addEventListener("mousedown", (e) => {
-      if (e.button !== 0 || e.target.closest(".toggle")) return;
+      if (e.button !== 0) return;
       e.stopPropagation();
       const current = lastPositions.get(node.id);
-      if (!current || node.id === "meduza") return;
+      if (!current) return;
       nodeDrag = {
         id: node.id,
+        node,
+        hasChildren,
         startX: e.clientX,
         startY: e.clientY,
         x: current.x,
         y: current.y,
-        el
+        el,
+        moved: false
       };
-      el.classList.add("dragging-node");
+      if (node.id !== "meduza") el.classList.add("dragging-node");
     });
 
     nodesLayer.appendChild(el);
@@ -478,13 +470,19 @@ stage.addEventListener("mousedown", (e) => {
 });
 window.addEventListener("mousemove", (e) => {
   if (nodeDrag) {
-    const x = nodeDrag.x + (e.clientX - nodeDrag.startX) / scale;
-    const y = nodeDrag.y + (e.clientY - nodeDrag.startY) / scale;
-    manualPositions[nodeDrag.id] = {x, y};
-    lastPositions.set(nodeDrag.id, {x, y});
-    nodeDrag.el.style.left = x + "px";
-    nodeDrag.el.style.top = y + "px";
-    updateEdgesFromPositions();
+    const dx = e.clientX - nodeDrag.startX;
+    const dy = e.clientY - nodeDrag.startY;
+    if (Math.hypot(dx, dy) > 6) nodeDrag.moved = true;
+
+    if (nodeDrag.moved && nodeDrag.id !== "meduza") {
+      const x = nodeDrag.x + dx / scale;
+      const y = nodeDrag.y + dy / scale;
+      manualPositions[nodeDrag.id] = {x, y};
+      lastPositions.set(nodeDrag.id, {x, y});
+      nodeDrag.el.style.left = x + "px";
+      nodeDrag.el.style.top = y + "px";
+      updateEdgesFromPositions();
+    }
     return;
   }
 
@@ -495,8 +493,15 @@ window.addEventListener("mousemove", (e) => {
 });
 window.addEventListener("mouseup", () => {
   if (nodeDrag) {
-    nodeDrag.el.classList.remove("dragging-node");
-    localStorage.setItem(positionStorageKey, JSON.stringify(manualPositions));
+    const d = nodeDrag;
+    if (d.el) d.el.classList.remove("dragging-node");
+
+    if (d.moved && d.id !== "meduza") {
+      localStorage.setItem(positionStorageKey, JSON.stringify(manualPositions));
+    } else if (!d.moved && d.hasChildren) {
+      d.node.expanded = !d.node.expanded;
+    }
+
     nodeDrag = null;
     render();
   }
