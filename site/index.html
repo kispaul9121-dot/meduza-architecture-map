@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meduza — карта архитектуры</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; background: #0d1117; }
+    body { display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border-bottom: 1px solid #30363d;
+      background: #161b22;
+    }
+    h1 { margin: 0; font-size: 18px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+    .pill {
+      padding: 4px 8px;
+      border: 1px solid #30363d;
+      border-radius: 999px;
+      background: #0d1117;
+    }
+    main { min-height: 0; position: relative; }
+    .markmap { width: 100%; height: 100%; position: relative; }
+    .markmap > svg { width: 100%; height: 100%; }
+    .hint {
+      position: absolute;
+      left: 16px;
+      bottom: 14px;
+      z-index: 10;
+      max-width: min(520px, calc(100vw - 32px));
+      padding: 8px 10px;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      background: rgba(13,17,23,.88);
+      color: #8b949e;
+      font-size: 12px;
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+  </style>
+  <script>
+    window.markmap = { autoLoader: { toolbar: true } };
+  </script>
+</head>
+<body>
+  <header>
+    <h1>MEDUZA — карта архитектуры</h1>
+    <div class="legend">
+      <span class="pill">✅ готово</span>
+      <span class="pill">🟡 проверка</span>
+      <span class="pill">📍 вы здесь</span>
+      <span class="pill">⛔ заблокировано</span>
+      <span class="pill">🛡 контракт</span>
+    </div>
+  </header>
+  <main>
+    <div class="markmap">
+      <script type="text/template">
+# MEDUZA
+
+## Каталог
+
+### ✅ R5-02 — пагинация
+- ГОТОВО
+
+### ✅ TASK-14 — иерархия / технический scope
+- Зависит от R5-02
+- Защищает полный scope технических колонок
+
+### 🟡 📍 TASK-16 — умные папки
+- Статус: ПРОВЕРКА
+- Семантическая принадлежность
+- Наследование критериев
+- Fail-closed при сломанной родительской цепочке
+- 🛡 Защищает
+  - R5-02 — пагинацию / фильтрацию / поиск / сортировку / count
+  - TASK-14 — полный scope колонок
+  - R5-03 — MatchSpec / Refresh
+- Открывает
+  - TASK-17 — Guided Move
+
+### ⛔ TASK-17 — перемещение
+- ЗАБЛОКИРОВАНО до приёмки TASK-16
+- Criteria diff → confirm → canonical Product/Facts → recompute
+
+### 🔵 TASK-15 — производительность
+- Параллельная проверка
+- Валидирует R5-02 / TASK-14 / TASK-16
+
+## 🛡 Сквозные контракты
+
+### R5-03 — MatchSpec / Refresh
+- Не ломать контракт сохранённого MatchSpec
+- Не менять Refresh семантику без отдельной задачи
+
+## Пилот
+
+### Dell R750
+- Контрольная точка каталога
+- Следующий кандидат после приёмки цепочки
+      </script>
+    </div>
+    <div class="hint">Клик по кружку у узла сворачивает/раскрывает ветку. Колёсико/трекпад — масштаб и перемещение.</div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@latest"></script>
+</body>
+</html>
