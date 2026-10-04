@@ -13,8 +13,10 @@
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
-      radial-gradient(circle at 50% 50%, rgba(42,70,110,.18), transparent 32%),
+      linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
       #090c12;
+      background-size: 32px 32px;
     }
     body { display: grid; grid-template-rows: auto 1fr; }
     header {
@@ -182,7 +184,7 @@
     <svg id="edges"></svg>
     <div id="nodes"></div>
   </div>
-  <div class="hint">Карточка с <b>+</b>/<b>−</b> имеет дочернюю ветку. Тяни саму карточку мышкой, чтобы переставить её. Карта также автоматически раздвигает пересекающиеся узлы. Перетаскивание пустого поля — движение всей карты.</div>
+  <div class="hint">Дерево идёт слева направо. Карточка с <b>+</b>/<b>−</b> имеет дочернюю ветку. Карточку можно вручную перетащить. Пустое поле двигает всю карту.</div>
   <div class="corner">
     <button id="zoomOut" title="Уменьшить">−</button>
     <button id="reset" title="Вернуть центр">◎</button>
@@ -265,7 +267,7 @@ let drag = null;
 let nodeDrag = null;
 let lastItems = [];
 let lastPositions = new Map();
-const positionStorageKey = "meduza-map-node-positions-v1";
+const positionStorageKey = "meduza-map-node-positions-v2";
 let manualPositions = {};
 try { manualPositions = JSON.parse(localStorage.getItem(positionStorageKey) || "{}"); } catch (_) { manualPositions = {}; }
 
@@ -293,91 +295,53 @@ function allVisible() {
   return items;
 }
 
-function polar(r, deg) {
-  const a = deg * Math.PI / 180;
-  return { x: Math.cos(a) * r, y: Math.sin(a) * r };
-}
-
 function layoutItems(items) {
-  const nodes = new Map();
+  const visibleIds = new Set(items.map((item) => item.node.id));
+  const itemById = new Map(items.map((item) => [item.node.id, item]));
+  const childrenByParent = new Map();
 
   items.forEach((item) => {
-    let base;
-    if (item.depth === 0) {
-      base = {x:0,y:0};
-    } else {
-      const step = item.depth === 1 ? 320 : 265;
-      const r = 145 + item.depth * step;
-      base = polar(r, item.branchAngle);
-    }
-
-    const saved = manualPositions[item.node.id];
-    nodes.set(item.node.id, {
-      x: saved ? saved.x : base.x,
-      y: saved ? saved.y : base.y,
-      baseX: base.x,
-      baseY: base.y,
-      fixed: item.depth === 0 || !!saved
-    });
+    if (!item.parent) return;
+    if (!childrenByParent.has(item.parent.id)) childrenByParent.set(item.parent.id, []);
+    childrenByParent.get(item.parent.id).push(item.node.id);
   });
 
-  // Автоматически расталкиваем карточки. Ручные позиции и центр считаются фиксированными.
-  const list = [...nodes.entries()];
-  const halfW = 126;
-  const halfH = 64;
-  const gapX = 22;
-  const gapY = 18;
+  const rowGap = 150;
+  const colGap = 330;
+  const yById = new Map();
+  let nextRow = 0;
 
-  for (let iteration = 0; iteration < 90; iteration++) {
-    for (const [id, p] of list) {
-      if (!p.fixed) {
-        p.x += (p.baseX - p.x) * 0.035;
-        p.y += (p.baseY - p.y) * 0.035;
-      }
+  function placeY(id) {
+    const children = (childrenByParent.get(id) || []).filter((childId) => visibleIds.has(childId));
+    if (!children.length) {
+      const y = nextRow * rowGap;
+      nextRow += 1;
+      yById.set(id, y);
+      return y;
     }
-
-    for (let i = 0; i < list.length; i++) {
-      for (let j = i + 1; j < list.length; j++) {
-        const [idA, a] = list[i];
-        const [idB, b] = list[j];
-        if (idA === "meduza" && idB === "meduza") continue;
-
-        let dx = b.x - a.x;
-        let dy = b.y - a.y;
-        if (Math.abs(dx) < 0.01) dx = 0.01;
-        if (Math.abs(dy) < 0.01) dy = 0.01;
-
-        const overlapX = (halfW * 2 + gapX) - Math.abs(dx);
-        const overlapY = (halfH * 2 + gapY) - Math.abs(dy);
-        if (overlapX <= 0 || overlapY <= 0) continue;
-
-        const separateX = overlapX / (halfW * 2 + gapX);
-        const separateY = overlapY / (halfH * 2 + gapY);
-        const useX = separateX < separateY;
-
-        let pushX = 0, pushY = 0;
-        if (useX) pushX = (overlapX / 2 + 2) * Math.sign(dx);
-        else pushY = (overlapY / 2 + 2) * Math.sign(dy);
-
-        if (a.fixed && b.fixed) continue;
-        if (a.fixed) {
-          b.x += pushX * 2;
-          b.y += pushY * 2;
-        } else if (b.fixed) {
-          a.x -= pushX * 2;
-          a.y -= pushY * 2;
-        } else {
-          a.x -= pushX;
-          a.y -= pushY;
-          b.x += pushX;
-          b.y += pushY;
-        }
-      }
-    }
+    const childYs = children.map(placeY);
+    const y = childYs.reduce((sum, value) => sum + value, 0) / childYs.length;
+    yById.set(id, y);
+    return y;
   }
 
+  placeY("meduza");
+
+  const values = [...yById.values()];
+  const minY = Math.min(...values);
+  const maxY = Math.max(...values);
+  const centerY = (minY + maxY) / 2;
+
   const map = new Map();
-  nodes.forEach((p, id) => map.set(id, {x:p.x, y:p.y}));
+  items.forEach((item) => {
+    const base = {
+      x: item.depth * colGap,
+      y: (yById.get(item.node.id) ?? 0) - centerY
+    };
+    const saved = manualPositions[item.node.id];
+    map.set(item.node.id, saved ? {x:saved.x, y:saved.y} : base);
+  });
+
   return map;
 }
 
