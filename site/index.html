@@ -192,63 +192,116 @@
 
 <script>
 const data = {
-  id: "meduza", title: "MEDUZA", subtitle: "центр проекта", status: "root", expanded: true,
+  id: "meduza",
+  title: "MEDUZA",
+  subtitle: "проект целиком",
+  status: "root",
+  expanded: true,
   children: [
     {
-      id: "catalog", title: "Каталог", subtitle: "структура товаров и умные папки", status: "branch", expanded: true,
+      id: "catalog",
+      title: "Каталог",
+      subtitle: "верхнеуровневый Admin workspace",
+      status: "branch",
+      expanded: true,
       children: [
-        { id: "r502", title: "R5-02 — пагинация", subtitle: "список / фильтры / count", status: "done" },
-        { id: "t14", title: "TASK-14 — технический scope", subtitle: "иерархия и колонки", status: "done" },
         {
-          id: "t16", title: "TASK-16 — умные папки", subtitle: "семантическая принадлежность", status: "current", expanded: true,
+          id: "smart-catalog",
+          title: "Каталог: дерево и таблица",
+          subtitle: "рабочая область списка товаров",
+          status: "branch",
+          expanded: false,
           children: [
-            { id: "t17", title: "TASK-17 — Guided Move", subtitle: "после приёмки TASK-16", status: "blocked" },
-            { id: "t15", title: "TASK-15 — производительность", subtitle: "параллельная проверка", status: "branch" }
+            { id: "catalog-tree", title: "Дерево разделов / умные папки", subtitle: "semantic/query-driven navigation", status: "branch" },
+            { id: "catalog-table", title: "Адаптивная таблица Products", subtitle: "поиск / фильтры / сортировка / колонки", status: "branch" }
+          ]
+        },
+        {
+          id: "product-card",
+          title: "Карточка Product",
+          subtitle: "основная рабочая поверхность товара",
+          status: "branch",
+          expanded: true,
+          children: [
+            { id: "product-main", title: "Основная информация", subtitle: "canonical Commerce + folder context", status: "branch" },
+            { id: "product-variants", title: "Варианты", subtitle: "native Medusa Options / Variants / SKU", status: "branch" },
+            { id: "product-characteristics", title: "Характеристики", subtitle: "единственный редактор technical Product Facts", status: "current" },
+            {
+              id: "product-configuration",
+              title: "Комплектация",
+              subtitle: "linked Config Nodes и подбор",
+              status: "branch",
+              expanded: false,
+              children: [
+                { id: "config-node-list", title: "Список активных Config Nodes", subtitle: "слева", status: "branch" },
+                { id: "config-node-workspace", title: "Рабочая область Node", subtitle: "MatchSpec / limits / Refresh / candidates / Save", status: "branch" }
+              ]
+            },
+            { id: "product-rules", title: "Ограничения и правила", subtitle: "Обзор / Проверки / JSON / История", status: "branch" },
+            { id: "product-related", title: "Связанные товары", subtitle: "relations без автоматического candidate approval", status: "branch" }
           ]
         }
       ]
     },
     {
-      id: "characteristics", title: "Характеристики", subtitle: "группы, свойства и факты", status: "branch", expanded: false,
+      id: "pages",
+      title: "Pages / Страницы",
+      subtitle: "отдельный верхнеуровневый Admin workspace",
+      status: "branch",
+      expanded: false,
       children: [
-        { id: "facts", title: "Facts / Properties", subtitle: "канонические характеристики", status: "branch" },
-        { id: "groups", title: "Группы характеристик", subtitle: "без виртуальной «Без группы»", status: "done" }
+        { id: "public-pages", title: "Public Pages", subtitle: "контент публичных страниц", status: "branch" },
+        { id: "page-template", title: "Product Page Template", subtitle: "структура представления страницы", status: "branch" },
+        { id: "page-media", title: "Media / документы / отображение", subtitle: "presentation workflow", status: "branch" },
+        { id: "page-preview", title: "Preview", subtitle: "предпросмотр публичной страницы", status: "branch" }
       ]
     },
     {
-      id: "config", title: "Комплектация", subtitle: "узлы и конфигуратор", status: "branch", expanded: false,
+      id: "seo",
+      title: "SEO",
+      subtitle: "отдельный верхнеуровневый Admin workspace",
+      status: "branch",
+      expanded: false,
       children: [
-        { id: "cpu", title: "CPU", subtitle: "Processor / socket / min-max", status: "branch" },
-        { id: "ram", title: "RAM", subtitle: "DIMM / ограничения", status: "branch" },
-        { id: "storage", title: "Storage", subtitle: "SFF / LFF / NVMe", status: "branch" },
-        { id: "pci", title: "PCI", subtitle: "slots / x8 / x16", status: "branch" }
+        { id: "seo-page", title: "SEO для Page / URL", subtitle: "canonical SEO editor связанной публичной страницы", status: "branch" },
+        { id: "seo-future", title: "Расширенные SEO-поля", subtitle: "детали ещё остаются open design question", status: "blocked" }
       ]
     },
     {
-      id: "storefront", title: "Страница / Витрина", subtitle: "как товар выглядит пользователю", status: "branch", expanded: false,
+      id: "storefront",
+      title: "Storefront",
+      subtitle: "публичный presentation/runtime слой",
+      status: "branch",
+      expanded: false,
       children: [
-        { id: "page", title: "Страница товара", subtitle: "контент и представление", status: "branch" },
-        { id: "guided", title: "Guided configurator", subtitle: "пользовательский путь", status: "branch" }
+        { id: "theme", title: "Storefront Theme", subtitle: "общий visual layout магазина", status: "branch" },
+        { id: "product-page-render", title: "Product Page rendering", subtitle: "обычный Product или configured Product", status: "branch" },
+        { id: "configurator-view", title: "Configurator View", subtitle: "только представление compiled runtime state", status: "branch" }
       ]
     },
     {
-      id: "seo", title: "SEO", subtitle: "поисковая структура и метаданные", status: "branch", expanded: false,
+      id: "system",
+      title: "Система / Runtime",
+      subtitle: "техническое ядро проекта",
+      status: "protected",
+      expanded: false,
       children: [
-        { id: "seo-meta", title: "Metadata", subtitle: "title / description / canonical", status: "branch" },
-        { id: "seo-routes", title: "Routes", subtitle: "URL и индексируемые страницы", status: "branch" }
+        { id: "library", title: "Dictionaries & Library", subtitle: "canonical definitions и stable IDs", status: "protected" },
+        { id: "facts", title: "Product Catalog Facts", subtitle: "canonical technical data", status: "protected" },
+        { id: "nodes", title: "Config Nodes / MatchSpec", subtitle: "stable refs и persisted matching", status: "protected" },
+        { id: "rules", title: "Rules", subtitle: "используют существующие Facts и Node IDs", status: "protected" },
+        { id: "config-package", title: "Configuration Package", subtitle: "versioned publish contract", status: "protected" },
+        { id: "validation-runtime", title: "Validation & Runtime", subtitle: "compiled/published runtime", status: "protected" }
       ]
     },
     {
-      id: "contracts", title: "Контракты", subtitle: "то, что нельзя ломать", status: "protected", expanded: true,
+      id: "integrations",
+      title: "Интеграции",
+      subtitle: "границы с внешними системами",
+      status: "branch",
+      expanded: false,
       children: [
-        { id: "r503", title: "R5-03 — MatchSpec / Refresh", subtitle: "сохранённый MatchSpec и Refresh", status: "protected" },
-        { id: "catalogColumns", title: "catalog:columns:v1", subtitle: "защищаемый контракт колонок", status: "protected" }
-      ]
-    },
-    {
-      id: "pilot", title: "Пилот", subtitle: "контрольные модели", status: "branch", expanded: false,
-      children: [
-        { id: "r750", title: "Dell R750", subtitle: "контрольная точка каталога", status: "branch" }
+        { id: "medusa-native", title: "Native Medusa", subtitle: "Product / Variant / Pricing / Inventory — source of truth", status: "protected" }
       ]
     }
   ]
