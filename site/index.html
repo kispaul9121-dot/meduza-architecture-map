@@ -46,13 +46,21 @@
       background: linear-gradient(180deg, rgba(27,34,46,.98), rgba(17,22,31,.98));
       box-shadow: 0 10px 30px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.025);
       user-select: none;
-      transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+      cursor: grab;
+      touch-action: none;
+      transition: border-color .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+    .node.dragging-node {
+      cursor: grabbing;
+      z-index: 30;
+      border-color: #7d94b2;
+      box-shadow: 0 18px 42px rgba(0,0,0,.48), 0 0 0 1px rgba(125,148,178,.18);
     }
     .node:hover {
       border-color: #56657a;
       box-shadow: 0 13px 34px rgba(0,0,0,.36), 0 0 0 1px rgba(105,132,170,.08);
     }
-    .node.expandable { cursor: pointer; }
+    .node.expandable { cursor: grab; }
     .node.root {
       width: 190px;
       border-color: #6e8bb5;
@@ -174,10 +182,11 @@
     <svg id="edges"></svg>
     <div id="nodes"></div>
   </div>
-  <div class="hint">Карточка с <b>+</b>/<b>−</b> имеет дочернюю ветку. Карточка без кнопки — конечный узел. Колесо — масштаб, перетаскивание пустого поля — движение карты.</div>
+  <div class="hint">Карточка с <b>+</b>/<b>−</b> имеет дочернюю ветку. Тяни саму карточку мышкой, чтобы переставить её. Карта также автоматически раздвигает пересекающиеся узлы. Перетаскивание пустого поля — движение всей карты.</div>
   <div class="corner">
     <button id="zoomOut" title="Уменьшить">−</button>
     <button id="reset" title="Вернуть центр">◎</button>
+    <button id="resetLayout" title="Сбросить ручное расположение">↺</button>
     <button id="zoomIn" title="Увеличить">+</button>
   </div>
 </div>
@@ -253,6 +262,12 @@ const svg = document.getElementById("edges");
 
 let panX = 0, panY = 0, scale = 0.88;
 let drag = null;
+let nodeDrag = null;
+let lastItems = [];
+let lastPositions = new Map();
+const positionStorageKey = "meduza-map-node-positions-v1";
+let manualPositions = {};
+try { manualPositions = JSON.parse(localStorage.getItem(positionStorageKey) || "{}"); } catch (_) { manualPositions = {}; }
 
 function allVisible() {
   const items = [];
@@ -284,17 +299,85 @@ function polar(r, deg) {
 }
 
 function layoutItems(items) {
-  const map = new Map();
+  const nodes = new Map();
+
   items.forEach((item) => {
+    let base;
     if (item.depth === 0) {
-      map.set(item.node.id, {x:0,y:0});
-      return;
+      base = {x:0,y:0};
+    } else {
+      const step = item.depth === 1 ? 320 : 265;
+      const r = 145 + item.depth * step;
+      base = polar(r, item.branchAngle);
     }
-    const step = item.depth === 1 ? 300 : 245;
-    const r = 130 + item.depth * step;
-    const p = polar(r, item.branchAngle);
-    map.set(item.node.id, p);
+
+    const saved = manualPositions[item.node.id];
+    nodes.set(item.node.id, {
+      x: saved ? saved.x : base.x,
+      y: saved ? saved.y : base.y,
+      baseX: base.x,
+      baseY: base.y,
+      fixed: item.depth === 0 || !!saved
+    });
   });
+
+  // Автоматически расталкиваем карточки. Ручные позиции и центр считаются фиксированными.
+  const list = [...nodes.entries()];
+  const halfW = 126;
+  const halfH = 64;
+  const gapX = 22;
+  const gapY = 18;
+
+  for (let iteration = 0; iteration < 90; iteration++) {
+    for (const [id, p] of list) {
+      if (!p.fixed) {
+        p.x += (p.baseX - p.x) * 0.035;
+        p.y += (p.baseY - p.y) * 0.035;
+      }
+    }
+
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const [idA, a] = list[i];
+        const [idB, b] = list[j];
+        if (idA === "meduza" && idB === "meduza") continue;
+
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        if (Math.abs(dx) < 0.01) dx = 0.01;
+        if (Math.abs(dy) < 0.01) dy = 0.01;
+
+        const overlapX = (halfW * 2 + gapX) - Math.abs(dx);
+        const overlapY = (halfH * 2 + gapY) - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+
+        const separateX = overlapX / (halfW * 2 + gapX);
+        const separateY = overlapY / (halfH * 2 + gapY);
+        const useX = separateX < separateY;
+
+        let pushX = 0, pushY = 0;
+        if (useX) pushX = (overlapX / 2 + 2) * Math.sign(dx);
+        else pushY = (overlapY / 2 + 2) * Math.sign(dy);
+
+        if (a.fixed && b.fixed) continue;
+        if (a.fixed) {
+          b.x += pushX * 2;
+          b.y += pushY * 2;
+        } else if (b.fixed) {
+          a.x -= pushX * 2;
+          a.y -= pushY * 2;
+        } else {
+          a.x -= pushX;
+          a.y -= pushY;
+          b.x += pushX;
+          b.y += pushY;
+        }
+      }
+    }
+  }
+
+  const map = new Map();
+  nodes.forEach((p, id) => map.set(id, {x:p.x, y:p.y}));
   return map;
 }
 
@@ -322,6 +405,8 @@ function statusText(node) {
 function render() {
   const items = allVisible();
   const pos = layoutItems(items);
+  lastItems = items;
+  lastPositions = pos;
   nodesLayer.innerHTML = "";
   svg.innerHTML = "";
 
@@ -365,17 +450,50 @@ function render() {
       '<div class="node-foot"><span class="status-label">' + statusText(node) + '</span>' + branchInfo + '</div>';
 
     if (hasChildren) {
-      el.addEventListener("click", (e) => {
-        if (e.target.closest(".toggle") || e.target === el || e.target.closest(".node-head") || e.target.closest(".node-foot")) {
-          node.expanded = !node.expanded;
-          render();
-        }
+      el.querySelector(".toggle").addEventListener("click", (e) => {
+        e.stopPropagation();
+        node.expanded = !node.expanded;
+        render();
       });
     }
+
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || e.target.closest(".toggle")) return;
+      e.stopPropagation();
+      const current = lastPositions.get(node.id);
+      if (!current || node.id === "meduza") return;
+      nodeDrag = {
+        id: node.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        x: current.x,
+        y: current.y,
+        el
+      };
+      el.classList.add("dragging-node");
+    });
+
     nodesLayer.appendChild(el);
   });
 
   applyTransform();
+}
+
+function updateEdgesFromPositions() {
+  svg.innerHTML = "";
+  lastItems.forEach((item) => {
+    if (!item.parent) return;
+    const a = lastPositions.get(item.parent.id);
+    const b = lastPositions.get(item.node.id);
+    if (!a || !b) return;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", a.x);
+    line.setAttribute("y1", a.y);
+    line.setAttribute("x2", b.x);
+    line.setAttribute("y2", b.y);
+    line.setAttribute("class", item.depth === 1 ? "edge primary" : "edge");
+    svg.appendChild(line);
+  });
 }
 
 function applyTransform() {
@@ -395,16 +513,41 @@ stage.addEventListener("mousedown", (e) => {
   stage.classList.add("dragging");
 });
 window.addEventListener("mousemove", (e) => {
+  if (nodeDrag) {
+    const x = nodeDrag.x + (e.clientX - nodeDrag.startX) / scale;
+    const y = nodeDrag.y + (e.clientY - nodeDrag.startY) / scale;
+    manualPositions[nodeDrag.id] = {x, y};
+    lastPositions.set(nodeDrag.id, {x, y});
+    nodeDrag.el.style.left = x + "px";
+    nodeDrag.el.style.top = y + "px";
+    updateEdgesFromPositions();
+    return;
+  }
+
   if (!drag) return;
   panX = drag.panX + (e.clientX - drag.x) / scale;
   panY = drag.panY + (e.clientY - drag.y) / scale;
   applyTransform();
 });
-window.addEventListener("mouseup", () => { drag = null; stage.classList.remove("dragging"); });
+window.addEventListener("mouseup", () => {
+  if (nodeDrag) {
+    nodeDrag.el.classList.remove("dragging-node");
+    localStorage.setItem(positionStorageKey, JSON.stringify(manualPositions));
+    nodeDrag = null;
+    render();
+  }
+  drag = null;
+  stage.classList.remove("dragging");
+});
 
 document.getElementById("zoomIn").onclick = () => { scale = Math.min(1.55, scale * 1.12); applyTransform(); };
 document.getElementById("zoomOut").onclick = () => { scale = Math.max(0.34, scale / 1.12); applyTransform(); };
 document.getElementById("reset").onclick = () => { panX = 0; panY = 0; scale = 0.88; applyTransform(); };
+document.getElementById("resetLayout").onclick = () => {
+  manualPositions = {};
+  localStorage.removeItem(positionStorageKey);
+  render();
+};
 
 render();
 </script>
