@@ -3,6 +3,11 @@ name: Deploy Meduza architecture map to Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      - "content/**"
+      - "site/**"
+      - "scripts/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -23,6 +28,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Build map data from Markdown
+        run: node scripts/build-map.mjs
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
